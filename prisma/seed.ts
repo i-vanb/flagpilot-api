@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { PrismaClient, RuleOperator } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
+import { createHash } from 'crypto';
 
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
@@ -67,6 +68,43 @@ async function main() {
       projectId: project.id,
     },
   });
+
+  const demoRawApiKey = 'fp_live_demo_123456789';
+
+  const apiKeyPepper = process.env.API_KEY_PEPPER;
+
+  if (!apiKeyPepper) {
+    throw new Error('API_KEY_PEPPER is not defined');
+  }
+
+  const demoApiKeyHash = createHash('sha256')
+    .update(`${demoRawApiKey}.${apiKeyPepper}`)
+    .digest('hex');
+
+  await prisma.apiKey.upsert({
+    where: {
+      id: 'demo-sdk-api-key',
+    },
+    update: {
+      keyHash: demoApiKeyHash,
+      prefix: demoRawApiKey.slice(0, 16),
+      organizationId: organization.id,
+      projectId: project.id,
+      environmentId: production.id,
+      revokedAt: null,
+    },
+    create: {
+      id: 'demo-sdk-api-key',
+      name: 'Demo Production SDK Key',
+      keyHash: demoApiKeyHash,
+      prefix: demoRawApiKey.slice(0, 16),
+      organizationId: organization.id,
+      projectId: project.id,
+      environmentId: production.id,
+    },
+  });
+
+  console.log(`Demo SDK API key: ${demoRawApiKey}`);
 
   const staging = await prisma.environment.upsert({
     where: {

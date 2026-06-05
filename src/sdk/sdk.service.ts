@@ -6,6 +6,8 @@ import { EvaluationContext, EvaluationFlag } from '../evaluation/engine/types';
 type EvaluateFlagParams = {
   flagKey: string;
   context: EvaluationContext;
+  projectId: string;
+  environmentId?: string | null;
 };
 
 @Injectable()
@@ -13,17 +15,19 @@ export class SdkService {
   constructor(private readonly prisma: PrismaService) {}
 
   async evaluateFlag(params: EvaluateFlagParams) {
-    const { flagKey, context } = params;
+    const { flagKey, context, projectId, environmentId } = params;
 
     const environmentKey = context.environment;
 
     const flag = await this.prisma.featureFlag.findFirst({
       where: {
         key: flagKey,
+        projectId,
         configs: {
           some: {
             environment: {
               key: environmentKey,
+              ...(environmentId ? { id: environmentId } : {}),
             },
           },
         },
