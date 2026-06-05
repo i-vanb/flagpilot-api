@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum FlagType {
+  BOOLEAN
+}
+
+enum RuleOperator {
+  EQUALS
+  NOT_EQUALS
+  IN
+  NOT_IN
+  PERCENTAGE_ROLLOUT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  ENABLE
+  DISABLE
+  ROTATE_API_KEY
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  projects  Project[]
+  apiKeys   ApiKey[]
+  auditLogs AuditLog[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  name           String?
+  role           UserRole @default(MEMBER)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditLogs    AuditLog[]
+
+  @@index([organizationId])
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  name           String
+  key            String
+  description    String?
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  environments Environment[]
+  flags        FeatureFlag[]
+  apiKeys      ApiKey[]
+  auditLogs    AuditLog[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
+}
+
+model Environment {
+  id        String   @id @default(cuid())
+  name      String
+  key       String
+  projectId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project     Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  flagConfigs FlagEnvironmentConfig[]
+  apiKeys     ApiKey[]
+
+  @@unique([projectId, key])
+  @@index([projectId])
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String
+  name        String
+  description String?
+  type        FlagType @default(BOOLEAN)
+  projectId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project   Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  configs   FlagEnvironmentConfig[]
+  auditLogs AuditLog[]
+
+  @@unique([projectId, key])
+  @@index([projectId])
+}
+
+model FlagEnvironmentConfig {
+  id            String   @id @default(cuid())
+  flagId        String
+  environmentId String
+  enabled       Boolean  @default(false)
+  defaultValue  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  flag        FeatureFlag    @relation(fields: [flagId], references: [id], onDelete: Cascade)
+  environment Environment    @relation(fields: [environmentId], references: [id], onDelete: Cascade)
+  rules       TargetingRule[]
+
+  @@unique([flagId, environmentId])
+  @@index([environmentId])
+}
+
+model TargetingRule {
+  id                String       @id @default(cuid())
+  configId          String
+  attribute         String
+  operator          RuleOperator
+  values            String[]
+  rolloutPercentage Int?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  config FlagEnvironmentConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([configId])
+}
+
+model ApiKey {
+  id             String    @id @default(cuid())
+  name           String
+  keyHash        String
+  prefix         String
+  organizationId String
+  projectId      String
+  environmentId  String?
+  revokedAt      DateTime?
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  environment  Environment? @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([prefix])
+}
+
+model AuditLog {
+  id             String      @id @default(cuid())
+  organizationId String
+  projectId      String?
+  userId         String?
+  flagId         String?
+  action         AuditAction
+  entityType     String
+  entityId       String
+  before         Json?
+  after          Json?
+  createdAt      DateTime    @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  flag         FeatureFlag? @relation(fields: [flagId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@index([flagId])
+  @@index([createdAt])
+}

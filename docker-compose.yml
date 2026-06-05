@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: flagpilot-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: flagpilot
+      POSTGRES_PASSWORD: flagpilot
+      POSTGRES_DB: flagpilot
+    ports:
+      - "5434:5432"
+    volumes:
+      - flagpilot-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  flagpilot-postgres-data:
