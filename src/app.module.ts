@@ -9,6 +9,7 @@ import { FlagsModule } from './flags/flags.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { EnvironmentsModule } from './environments/environments.module';
 import { ProjectsModule } from './projects/projects.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ProjectsModule } from './projects/projects.module';
     AuditLogsModule,
     ProjectsModule,
     EnvironmentsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
