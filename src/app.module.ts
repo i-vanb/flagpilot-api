@@ -7,6 +7,8 @@ import { SdkModule } from './sdk/sdk.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { FlagsModule } from './flags/flags.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { EnvironmentsModule } from './environments/environments.module';
+import { ProjectsModule } from './projects/projects.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
     SdkModule,
     FlagsModule,
     AuditLogsModule,
+    ProjectsModule,
+    EnvironmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
