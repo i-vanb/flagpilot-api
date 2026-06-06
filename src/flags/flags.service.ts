@@ -7,6 +7,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateFlagDto } from './dto/create-flag.dto';
 import { UpdateFlagDto } from './dto/update-flag.dto';
 import { UpdateFlagConfigDto } from './dto/update-flag-config.dto';
+import { CreateTargetingRuleDto } from './dto/create-targeting-rule.dto';
+import { UpdateTargetingRuleDto } from './dto/update-targeting-rule.dto';
+import { RuleOperator } from '@prisma/client';
 
 @Injectable()
 export class FlagsService {
@@ -246,6 +249,129 @@ export class FlagsService {
 
     if (!flag) {
       throw new NotFoundException('Feature flag not found');
+    }
+  }
+
+  async createRule(configId: string, dto: CreateTargetingRuleDto) {
+    await this.ensureConfigExists(configId);
+
+    this.validateRule(dto.operator, dto.values ?? [], dto.rolloutPercentage);
+
+    return this.prisma.targetingRule.create({
+      data: {
+        configId,
+        attribute: dto.attribute,
+        operator: dto.operator,
+        values:
+          dto.operator === RuleOperator.PERCENTAGE_ROLLOUT ? [] : dto.values,
+        rolloutPercentage:
+          dto.operator === RuleOperator.PERCENTAGE_ROLLOUT
+            ? dto.rolloutPercentage
+            : null,
+      },
+    });
+  }
+
+  async updateRule(ruleId: string, dto: UpdateTargetingRuleDto) {
+    const existingRule = await this.prisma.targetingRule.findUnique({
+      where: {
+        id: ruleId,
+      },
+    });
+
+    if (!existingRule) {
+      throw new NotFoundException('Targeting rule not found');
+    }
+
+    const nextOperator = dto.operator ?? existingRule.operator;
+    const nextValues = dto.values ?? existingRule.values;
+    const nextRolloutPercentage =
+      dto.rolloutPercentage ?? existingRule.rolloutPercentage;
+
+    this.validateRule(nextOperator, nextValues, nextRolloutPercentage);
+
+    return this.prisma.targetingRule.update({
+      where: {
+        id: ruleId,
+      },
+      data: {
+        attribute: dto.attribute,
+        operator: dto.operator,
+        values:
+          nextOperator === RuleOperator.PERCENTAGE_ROLLOUT ? [] : nextValues,
+        rolloutPercentage:
+          nextOperator === RuleOperator.PERCENTAGE_ROLLOUT
+            ? nextRolloutPercentage
+            : null,
+      },
+    });
+  }
+
+  async removeRule(ruleId: string) {
+    const existingRule = await this.prisma.targetingRule.findUnique({
+      where: {
+        id: ruleId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!existingRule) {
+      throw new NotFoundException('Targeting rule not found');
+    }
+
+    await this.prisma.targetingRule.delete({
+      where: {
+        id: ruleId,
+      },
+    });
+
+    return {
+      deleted: true,
+      id: ruleId,
+    };
+  }
+
+  private async ensureConfigExists(configId: string): Promise<void> {
+    const config = await this.prisma.flagEnvironmentConfig.findUnique({
+      where: {
+        id: configId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!config) {
+      throw new NotFoundException('Flag config not found');
+    }
+  }
+
+  private validateRule(
+    operator: RuleOperator,
+    values: string[],
+    rolloutPercentage?: number | null,
+  ): void {
+    if (operator === RuleOperator.PERCENTAGE_ROLLOUT) {
+      if (
+        rolloutPercentage === undefined ||
+        rolloutPercentage === null ||
+        rolloutPercentage < 0 ||
+        rolloutPercentage > 100
+      ) {
+        throw new ConflictException(
+          'PERCENTAGE_ROLLOUT rule requires rolloutPercentage between 0 and 100',
+        );
+      }
+
+      return;
+    }
+
+    if (!values || values.length === 0) {
+      throw new ConflictException(
+        `${operator} rule requires at least one value`,
+      );
     }
   }
 }

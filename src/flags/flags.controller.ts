@@ -11,6 +11,8 @@ import { CreateFlagDto } from './dto/create-flag.dto';
 import { UpdateFlagConfigDto } from './dto/update-flag-config.dto';
 import { UpdateFlagDto } from './dto/update-flag.dto';
 import { FlagsService } from './flags.service';
+import { CreateTargetingRuleDto } from './dto/create-targeting-rule.dto';
+import { UpdateTargetingRuleDto } from './dto/update-targeting-rule.dto';
 
 @Controller()
 export class FlagsController {
@@ -53,5 +55,26 @@ export class FlagsController {
     @Body() dto: UpdateFlagConfigDto,
   ) {
     return this.flagsService.updateConfig(flagId, environmentId, dto);
+  }
+
+  @Post('configs/:configId/rules')
+  createRule(
+    @Param('configId') configId: string,
+    @Body() dto: CreateTargetingRuleDto,
+  ) {
+    return this.flagsService.createRule(configId, dto);
+  }
+
+  @Patch('rules/:ruleId')
+  updateRule(
+    @Param('ruleId') ruleId: string,
+    @Body() dto: UpdateTargetingRuleDto,
+  ) {
+    return this.flagsService.updateRule(ruleId, dto);
+  }
+
+  @Delete('rules/:ruleId')
+  removeRule(@Param('ruleId') ruleId: string) {
+    return this.flagsService.removeRule(ruleId);
   }
 }
