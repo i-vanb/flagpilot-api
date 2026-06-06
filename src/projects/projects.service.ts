@@ -16,8 +16,11 @@ export class ProjectsService {
     private readonly auditLogs: AuditLogsService,
   ) {}
 
-  async findAll() {
+  async findAll(organizationId: string) {
     return this.prisma.project.findMany({
+      where: {
+        organizationId,
+      },
       orderBy: {
         createdAt: 'desc',
       },
@@ -44,10 +47,10 @@ export class ProjectsService {
     });
   }
 
-  async create(dto: CreateProjectDto) {
+  async create(organizationId: string, dto: CreateProjectDto) {
     const organization = await this.prisma.organization.findUnique({
       where: {
-        id: dto.organizationId,
+        id: organizationId,
       },
       select: {
         id: true,
@@ -61,7 +64,7 @@ export class ProjectsService {
     const existingProject = await this.prisma.project.findUnique({
       where: {
         organizationId_key: {
-          organizationId: dto.organizationId,
+          organizationId: organizationId,
           key: dto.key,
         },
       },
@@ -76,7 +79,7 @@ export class ProjectsService {
     const project = await this.prisma.$transaction(async (tx) => {
       const createdProject = await tx.project.create({
         data: {
-          organizationId: dto.organizationId,
+          organizationId: organizationId,
           name: dto.name,
           key: dto.key,
           description: dto.description,
@@ -122,7 +125,7 @@ export class ProjectsService {
     }
 
     await this.auditLogs.create({
-      organizationId: dto.organizationId,
+      organizationId: organizationId,
       projectId: project.id,
       action: AuditAction.CREATE,
       entityType: 'Project',

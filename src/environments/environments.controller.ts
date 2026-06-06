@@ -6,12 +6,15 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateEnvironmentDto } from './dto/create-environment.dto';
 import { UpdateEnvironmentDto } from './dto/update-environment.dto';
 import { EnvironmentsService } from './environments.service';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class EnvironmentsController {
   constructor(private readonly environmentsService: EnvironmentsService) {}
 

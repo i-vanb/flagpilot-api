@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateFlagDto } from './dto/create-flag.dto';
 import { UpdateFlagConfigDto } from './dto/update-flag-config.dto';
@@ -13,8 +14,10 @@ import { UpdateFlagDto } from './dto/update-flag.dto';
 import { FlagsService } from './flags.service';
 import { CreateTargetingRuleDto } from './dto/create-targeting-rule.dto';
 import { UpdateTargetingRuleDto } from './dto/update-targeting-rule.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class FlagsController {
   constructor(private readonly flagsService: FlagsService) {}
 

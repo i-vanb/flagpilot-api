@@ -15,12 +15,4 @@ export class CreateProjectDto {
   @IsString()
   @IsOptional()
   description?: string;
-
-  /**
-   * Temporary field until JWT auth is added.
-   * Later organizationId will come from the authenticated user.
-   */
-  @IsString()
-  @IsNotEmpty()
-  organizationId: string;
 }

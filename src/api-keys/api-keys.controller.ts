@@ -1,8 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiKeysService } from './api-keys.service';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class ApiKeysController {
   constructor(private readonly apiKeysService: ApiKeysService) {}
 
