@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { SdkModule } from './sdk/sdk.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { FlagsModule } from './flags/flags.module';
+import { AuditLogsModule } from './audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { FlagsModule } from './flags/flags.module';
     PrismaModule,
     SdkModule,
     FlagsModule,
+    AuditLogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
