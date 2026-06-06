@@ -9,11 +9,16 @@ import { UpdateFlagDto } from './dto/update-flag.dto';
 import { UpdateFlagConfigDto } from './dto/update-flag-config.dto';
 import { CreateTargetingRuleDto } from './dto/create-targeting-rule.dto';
 import { UpdateTargetingRuleDto } from './dto/update-targeting-rule.dto';
-import { RuleOperator } from '@prisma/client';
+import { AuditAction, RuleOperator } from '@prisma/client';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { toPrismaJson } from '../common/utils/to-prisma-json';
 
 @Injectable()
 export class FlagsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogs: AuditLogsService,
+  ) {}
 
   async findByProject(projectId: string) {
     await this.ensureProjectExists(projectId);
@@ -42,7 +47,19 @@ export class FlagsService {
   }
 
   async create(projectId: string, dto: CreateFlagDto) {
-    await this.ensureProjectExists(projectId);
+    const project = await this.prisma.project.findUnique({
+      where: {
+        id: projectId,
+      },
+      select: {
+        id: true,
+        organizationId: true,
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
 
     const existingFlag = await this.prisma.featureFlag.findUnique({
       where: {
@@ -86,7 +103,7 @@ export class FlagsService {
         });
       }
 
-      return tx.featureFlag.findUnique({
+      const createdFlag = await tx.featureFlag.findUnique({
         where: {
           id: flag.id,
         },
@@ -99,6 +116,25 @@ export class FlagsService {
           },
         },
       });
+
+      if (!createdFlag) {
+        throw new NotFoundException('Created feature flag not found');
+      }
+
+      await tx.auditLog.create({
+        data: {
+          organizationId: project.organizationId,
+          projectId,
+          flagId: flag.id,
+          action: AuditAction.CREATE,
+          entityType: 'FeatureFlag',
+          entityId: flag.id,
+          before: undefined,
+          after: toPrismaJson(createdFlag),
+        },
+      });
+
+      return createdFlag;
     });
   }
 
@@ -131,9 +167,10 @@ export class FlagsService {
   }
 
   async update(flagId: string, dto: UpdateFlagDto) {
-    await this.ensureFlagExists(flagId);
+    const { flag, projectId, organizationId } =
+      await this.getFlagAuditContext(flagId);
 
-    return this.prisma.featureFlag.update({
+    const updatedFlag = await this.prisma.featureFlag.update({
       where: {
         id: flagId,
       },
@@ -150,15 +187,40 @@ export class FlagsService {
         },
       },
     });
+
+    await this.auditLogs.create({
+      organizationId,
+      projectId,
+      flagId,
+      action: AuditAction.UPDATE,
+      entityType: 'FeatureFlag',
+      entityId: flagId,
+      before: flag,
+      after: updatedFlag,
+    });
+
+    return updatedFlag;
   }
 
   async remove(flagId: string) {
-    await this.ensureFlagExists(flagId);
+    const { flag, projectId, organizationId } =
+      await this.getFlagAuditContext(flagId);
 
     await this.prisma.featureFlag.delete({
       where: {
         id: flagId,
       },
+    });
+
+    await this.auditLogs.create({
+      organizationId,
+      projectId,
+      flagId: null,
+      action: AuditAction.DELETE,
+      entityType: 'FeatureFlag',
+      entityId: flagId,
+      before: flag,
+      after: null,
     });
 
     return {
@@ -198,13 +260,25 @@ export class FlagsService {
           environmentId,
         },
       },
+      include: {
+        flag: {
+          include: {
+            project: {
+              select: {
+                id: true,
+                organizationId: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!config) {
       throw new NotFoundException('Flag config for environment not found');
     }
 
-    return this.prisma.flagEnvironmentConfig.update({
+    const updatedConfig = await this.prisma.flagEnvironmentConfig.update({
       where: {
         flagId_environmentId: {
           flagId,
@@ -220,6 +294,19 @@ export class FlagsService {
         rules: true,
       },
     });
+
+    await this.auditLogs.create({
+      organizationId: config.flag.project.organizationId,
+      projectId: config.flag.project.id,
+      flagId,
+      action: AuditAction.UPDATE,
+      entityType: 'FlagEnvironmentConfig',
+      entityId: config.id,
+      before: config,
+      after: updatedConfig,
+    });
+
+    return updatedConfig;
   }
 
   private async ensureProjectExists(projectId: string): Promise<void> {
@@ -257,7 +344,7 @@ export class FlagsService {
 
     this.validateRule(dto.operator, dto.values ?? [], dto.rolloutPercentage);
 
-    return this.prisma.targetingRule.create({
+    const rule = await this.prisma.targetingRule.create({
       data: {
         configId,
         attribute: dto.attribute,
@@ -270,6 +357,21 @@ export class FlagsService {
             : null,
       },
     });
+
+    const context = await this.getConfigAuditContext(configId);
+
+    await this.auditLogs.create({
+      organizationId: context.organizationId,
+      projectId: context.projectId,
+      flagId: context.flag.id,
+      action: AuditAction.CREATE,
+      entityType: 'TargetingRule',
+      entityId: rule.id,
+      before: null,
+      after: rule,
+    });
+
+    return rule;
   }
 
   async updateRule(ruleId: string, dto: UpdateTargetingRuleDto) {
@@ -290,7 +392,7 @@ export class FlagsService {
 
     this.validateRule(nextOperator, nextValues, nextRolloutPercentage);
 
-    return this.prisma.targetingRule.update({
+    const updatedRule = this.prisma.targetingRule.update({
       where: {
         id: ruleId,
       },
@@ -305,6 +407,21 @@ export class FlagsService {
             : null,
       },
     });
+
+    const context = await this.getRuleAuditContext(ruleId);
+
+    await this.auditLogs.create({
+      organizationId: context.organizationId,
+      projectId: context.projectId,
+      flagId: context.flag.id,
+      action: AuditAction.UPDATE,
+      entityType: 'TargetingRule',
+      entityId: ruleId,
+      before: existingRule,
+      after: updatedRule,
+    });
+
+    return updatedRule;
   }
 
   async removeRule(ruleId: string) {
@@ -321,10 +438,23 @@ export class FlagsService {
       throw new NotFoundException('Targeting rule not found');
     }
 
+    const context = await this.getRuleAuditContext(ruleId);
+
     await this.prisma.targetingRule.delete({
       where: {
         id: ruleId,
       },
+    });
+
+    await this.auditLogs.create({
+      organizationId: context.organizationId,
+      projectId: context.projectId,
+      flagId: context.flag.id,
+      action: AuditAction.DELETE,
+      entityType: 'TargetingRule',
+      entityId: ruleId,
+      before: context.rule,
+      after: null,
     });
 
     return {
@@ -373,5 +503,98 @@ export class FlagsService {
         `${operator} rule requires at least one value`,
       );
     }
+  }
+
+  private async getFlagAuditContext(flagId: string) {
+    const flag = await this.prisma.featureFlag.findUnique({
+      where: {
+        id: flagId,
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            organizationId: true,
+          },
+        },
+      },
+    });
+
+    if (!flag) {
+      throw new NotFoundException('Feature flag not found');
+    }
+
+    return {
+      flag,
+      projectId: flag.project.id,
+      organizationId: flag.project.organizationId,
+    };
+  }
+
+  private async getConfigAuditContext(configId: string) {
+    const config = await this.prisma.flagEnvironmentConfig.findUnique({
+      where: {
+        id: configId,
+      },
+      include: {
+        flag: {
+          include: {
+            project: {
+              select: {
+                id: true,
+                organizationId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!config) {
+      throw new NotFoundException('Flag config not found');
+    }
+
+    return {
+      config,
+      flag: config.flag,
+      projectId: config.flag.project.id,
+      organizationId: config.flag.project.organizationId,
+    };
+  }
+
+  private async getRuleAuditContext(ruleId: string) {
+    const rule = await this.prisma.targetingRule.findUnique({
+      where: {
+        id: ruleId,
+      },
+      include: {
+        config: {
+          include: {
+            flag: {
+              include: {
+                project: {
+                  select: {
+                    id: true,
+                    organizationId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!rule) {
+      throw new NotFoundException('Targeting rule not found');
+    }
+
+    return {
+      rule,
+      config: rule.config,
+      flag: rule.config.flag,
+      projectId: rule.config.flag.project.id,
+      organizationId: rule.config.flag.project.organizationId,
+    };
   }
 }
