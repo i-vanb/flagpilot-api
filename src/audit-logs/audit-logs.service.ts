@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AuditAction } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { toPrismaJson } from '../common/utils/to-prisma-json';
 
 type CreateAuditLogParams = {
   organizationId: string;
@@ -29,13 +30,9 @@ export class AuditLogsService {
         entityType: params.entityType,
         entityId: params.entityId,
         before:
-          params.before === undefined
-            ? undefined
-            : JSON.parse(JSON.stringify(params.before)),
+          params.before === undefined ? undefined : toPrismaJson(params.before),
         after:
-          params.after === undefined
-            ? undefined
-            : JSON.parse(JSON.stringify(params.after)),
+          params.after === undefined ? undefined : toPrismaJson(params.after),
       },
     });
   }
