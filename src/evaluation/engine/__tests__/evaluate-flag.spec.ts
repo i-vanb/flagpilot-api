@@ -106,7 +106,7 @@ describe('evaluateFlag', () => {
     });
   });
 
-  it('does not enable flag for non-matching kiosk id', () => {
+  it('returns targeting no match for non-matching kiosk id', () => {
     const flag: EvaluationFlag = {
       key: 'new-kiosk-payment-screen',
       configs: [
@@ -136,7 +136,7 @@ describe('evaluateFlag', () => {
 
     expect(result).toEqual({
       enabled: false,
-      reason: 'DEFAULT_VALUE',
+      reason: 'TARGETING_NO_MATCH',
     });
   });
 
@@ -174,7 +174,7 @@ describe('evaluateFlag', () => {
     });
   });
 
-  it('uses default value when there are no matching rules', () => {
+  it('returns targeting no match when rules exist but do not match', () => {
     const flag: EvaluationFlag = {
       key: 'admin-analytics-panel',
       configs: [
@@ -204,7 +204,7 @@ describe('evaluateFlag', () => {
 
     expect(result).toEqual({
       enabled: false,
-      reason: 'DEFAULT_VALUE',
+      reason: 'TARGETING_NO_MATCH',
     });
   });
 
@@ -247,5 +247,33 @@ describe('evaluateFlag', () => {
     );
 
     expect(secondResult).toEqual(firstResult);
+  });
+
+  it('uses default value when there are no rules', () => {
+    const flag: EvaluationFlag = {
+      key: 'new-booking-flow',
+      configs: [
+        {
+          environmentKey: 'production',
+          enabled: true,
+          defaultValue: true,
+          rules: [],
+        },
+      ],
+    };
+
+    const result = evaluateFlag(
+      'new-booking-flow',
+      {
+        environment: 'production',
+        userId: 'user-123',
+      },
+      flag,
+    );
+
+    expect(result).toEqual({
+      enabled: true,
+      reason: 'DEFAULT_VALUE',
+    });
   });
 });

@@ -1,4 +1,9 @@
-import { EvaluationContext, EvaluationFlag, EvaluationResult } from './types';
+import {
+  EvaluationContext,
+  EvaluationFlag,
+  EvaluationReason,
+  EvaluationResult,
+} from './types';
 import { evaluateRule } from './evaluate-rule';
 
 export function evaluateFlag(
@@ -31,6 +36,8 @@ export function evaluateFlag(
     };
   }
 
+  let lastNoMatchReason: EvaluationReason | null = null;
+
   for (const rule of config.rules) {
     const result = evaluateRule(rule, context);
 
@@ -40,10 +47,12 @@ export function evaluateFlag(
         reason: result.reason,
       };
     }
+
+    lastNoMatchReason = result.reason;
   }
 
   return {
     enabled: config.defaultValue,
-    reason: 'DEFAULT_VALUE',
+    reason: lastNoMatchReason ?? 'DEFAULT_VALUE',
   };
 }
