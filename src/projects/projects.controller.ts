@@ -8,12 +8,12 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { type JwtPayload } from '../auth/types/jwt-payload.type';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { ProjectsService } from './projects.service';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { type JwtPayload } from '../auth/types/jwt-payload.type';
 
 @Controller('projects')
 @UseGuards(JwtAuthGuard)
@@ -31,17 +31,27 @@ export class ProjectsController {
   }
 
   @Get(':projectId')
-  findOne(@Param('projectId') projectId: string) {
-    return this.projectsService.findOne(projectId);
+  findOne(
+    @CurrentUser() user: JwtPayload,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.projectsService.findOne(user.organizationId, projectId);
   }
 
   @Patch(':projectId')
-  update(@Param('projectId') projectId: string, @Body() dto: UpdateProjectDto) {
-    return this.projectsService.update(projectId, dto);
+  update(
+    @CurrentUser() user: JwtPayload,
+    @Param('projectId') projectId: string,
+    @Body() dto: UpdateProjectDto,
+  ) {
+    return this.projectsService.update(user.organizationId, projectId, dto);
   }
 
   @Delete(':projectId')
-  remove(@Param('projectId') projectId: string) {
-    return this.projectsService.remove(projectId);
+  remove(
+    @CurrentUser() user: JwtPayload,
+    @Param('projectId') projectId: string,
+  ) {
+    return this.projectsService.remove(user.organizationId, projectId);
   }
 }

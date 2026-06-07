@@ -137,10 +137,11 @@ export class ProjectsService {
     return project;
   }
 
-  async findOne(projectId: string) {
-    const project = await this.prisma.project.findUnique({
+  async findOne(organizationId: string, projectId: string) {
+    const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,
+        organizationId,
       },
       include: {
         organization: {
@@ -191,10 +192,15 @@ export class ProjectsService {
     return project;
   }
 
-  async update(projectId: string, dto: UpdateProjectDto) {
-    const existingProject = await this.prisma.project.findUnique({
+  async update(
+    organizationId: string,
+    projectId: string,
+    dto: UpdateProjectDto,
+  ) {
+    const existingProject = await this.prisma.project.findFirst({
       where: {
         id: projectId,
+        organizationId,
       },
     });
 
@@ -213,7 +219,7 @@ export class ProjectsService {
     });
 
     await this.auditLogs.create({
-      organizationId: existingProject.organizationId,
+      organizationId,
       projectId,
       action: AuditAction.UPDATE,
       entityType: 'Project',
@@ -225,10 +231,11 @@ export class ProjectsService {
     return updatedProject;
   }
 
-  async remove(projectId: string) {
-    const existingProject = await this.prisma.project.findUnique({
+  async remove(organizationId: string, projectId: string) {
+    const existingProject = await this.prisma.project.findFirst({
       where: {
         id: projectId,
+        organizationId,
       },
     });
 
@@ -242,12 +249,8 @@ export class ProjectsService {
       },
     });
 
-    /**
-     * Project relation is gone after delete, so we keep projectId in entityId.
-     * projectId relation itself may be impossible after cascade.
-     */
     await this.auditLogs.create({
-      organizationId: existingProject.organizationId,
+      organizationId,
       projectId: null,
       action: AuditAction.DELETE,
       entityType: 'Project',

@@ -20,8 +20,8 @@ export class FlagsService {
     private readonly auditLogs: AuditLogsService,
   ) {}
 
-  async findByProject(projectId: string) {
-    await this.ensureProjectExists(projectId);
+  async findByProject(organizationId: string, projectId: string) {
+    await this.ensureProjectBelongsToOrganization(organizationId, projectId);
 
     return this.prisma.featureFlag.findMany({
       where: {
@@ -46,10 +46,11 @@ export class FlagsService {
     });
   }
 
-  async create(projectId: string, dto: CreateFlagDto) {
-    const project = await this.prisma.project.findUnique({
+  async create(organizationId: string, projectId: string, dto: CreateFlagDto) {
+    const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,
+        organizationId,
       },
       select: {
         id: true,
@@ -138,10 +139,13 @@ export class FlagsService {
     });
   }
 
-  async findOne(flagId: string) {
-    const flag = await this.prisma.featureFlag.findUnique({
+  async findOne(organizationId: string, flagId: string) {
+    const flag = await this.prisma.featureFlag.findFirst({
       where: {
         id: flagId,
+        project: {
+          organizationId,
+        },
       },
       include: {
         project: true,
@@ -166,9 +170,11 @@ export class FlagsService {
     return flag;
   }
 
-  async update(flagId: string, dto: UpdateFlagDto) {
-    const { flag, projectId, organizationId } =
-      await this.getFlagAuditContext(flagId);
+  async update(organizationId: string, flagId: string, dto: UpdateFlagDto) {
+    const { flag, projectId } = await this.getFlagAuditContext(
+      organizationId,
+      flagId,
+    );
 
     const updatedFlag = await this.prisma.featureFlag.update({
       where: {
@@ -202,9 +208,11 @@ export class FlagsService {
     return updatedFlag;
   }
 
-  async remove(flagId: string) {
-    const { flag, projectId, organizationId } =
-      await this.getFlagAuditContext(flagId);
+  async remove(organizationId: string, flagId: string) {
+    const { flag, projectId } = await this.getFlagAuditContext(
+      organizationId,
+      flagId,
+    );
 
     await this.prisma.featureFlag.delete({
       where: {
@@ -229,8 +237,8 @@ export class FlagsService {
     };
   }
 
-  async findConfigs(flagId: string) {
-    await this.ensureFlagExists(flagId);
+  async findConfigs(organizationId: string, flagId: string) {
+    await this.getFlagAuditContext(organizationId, flagId);
 
     return this.prisma.flagEnvironmentConfig.findMany({
       where: {
@@ -249,15 +257,19 @@ export class FlagsService {
   }
 
   async updateConfig(
+    organizationId: string,
     flagId: string,
     environmentId: string,
     dto: UpdateFlagConfigDto,
   ) {
-    const config = await this.prisma.flagEnvironmentConfig.findUnique({
+    const config = await this.prisma.flagEnvironmentConfig.findFirst({
       where: {
-        flagId_environmentId: {
-          flagId,
-          environmentId,
+        flagId,
+        environmentId,
+        flag: {
+          project: {
+            organizationId,
+          },
         },
       },
       include: {
@@ -296,7 +308,7 @@ export class FlagsService {
     });
 
     await this.auditLogs.create({
-      organizationId: config.flag.project.organizationId,
+      organizationId,
       projectId: config.flag.project.id,
       flagId,
       action: AuditAction.UPDATE,
@@ -339,8 +351,12 @@ export class FlagsService {
     }
   }
 
-  async createRule(configId: string, dto: CreateTargetingRuleDto) {
-    await this.ensureConfigExists(configId);
+  async createRule(
+    organizationId: string,
+    configId: string,
+    dto: CreateTargetingRuleDto,
+  ) {
+    const context = await this.getConfigAuditContext(organizationId, configId);
 
     this.validateRule(dto.operator, dto.values ?? [], dto.rolloutPercentage);
 
@@ -358,8 +374,6 @@ export class FlagsService {
       },
     });
 
-    const context = await this.getConfigAuditContext(configId);
-
     await this.auditLogs.create({
       organizationId: context.organizationId,
       projectId: context.projectId,
@@ -374,12 +388,13 @@ export class FlagsService {
     return rule;
   }
 
-  async updateRule(ruleId: string, dto: UpdateTargetingRuleDto) {
-    const existingRule = await this.prisma.targetingRule.findUnique({
-      where: {
-        id: ruleId,
-      },
-    });
+  async updateRule(
+    organizationId: string,
+    ruleId: string,
+    dto: UpdateTargetingRuleDto,
+  ) {
+    const context = await this.getRuleAuditContext(organizationId, ruleId);
+    const existingRule = context.rule;
 
     if (!existingRule) {
       throw new NotFoundException('Targeting rule not found');
@@ -408,8 +423,6 @@ export class FlagsService {
       },
     });
 
-    const context = await this.getRuleAuditContext(ruleId);
-
     await this.auditLogs.create({
       organizationId: context.organizationId,
       projectId: context.projectId,
@@ -424,21 +437,8 @@ export class FlagsService {
     return updatedRule;
   }
 
-  async removeRule(ruleId: string) {
-    const existingRule = await this.prisma.targetingRule.findUnique({
-      where: {
-        id: ruleId,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!existingRule) {
-      throw new NotFoundException('Targeting rule not found');
-    }
-
-    const context = await this.getRuleAuditContext(ruleId);
+  async removeRule(organizationId: string, ruleId: string) {
+    const context = await this.getRuleAuditContext(organizationId, ruleId);
 
     await this.prisma.targetingRule.delete({
       where: {
@@ -505,10 +505,13 @@ export class FlagsService {
     }
   }
 
-  private async getFlagAuditContext(flagId: string) {
-    const flag = await this.prisma.featureFlag.findUnique({
+  private async getFlagAuditContext(organizationId: string, flagId: string) {
+    const flag = await this.prisma.featureFlag.findFirst({
       where: {
         id: flagId,
+        project: {
+          organizationId,
+        },
       },
       include: {
         project: {
@@ -531,10 +534,18 @@ export class FlagsService {
     };
   }
 
-  private async getConfigAuditContext(configId: string) {
-    const config = await this.prisma.flagEnvironmentConfig.findUnique({
+  private async getConfigAuditContext(
+    organizationId: string,
+    configId: string,
+  ) {
+    const config = await this.prisma.flagEnvironmentConfig.findFirst({
       where: {
         id: configId,
+        flag: {
+          project: {
+            organizationId,
+          },
+        },
       },
       include: {
         flag: {
@@ -562,10 +573,17 @@ export class FlagsService {
     };
   }
 
-  private async getRuleAuditContext(ruleId: string) {
-    const rule = await this.prisma.targetingRule.findUnique({
+  private async getRuleAuditContext(organizationId: string, ruleId: string) {
+    const rule = await this.prisma.targetingRule.findFirst({
       where: {
         id: ruleId,
+        config: {
+          flag: {
+            project: {
+              organizationId,
+            },
+          },
+        },
       },
       include: {
         config: {
@@ -596,5 +614,24 @@ export class FlagsService {
       projectId: rule.config.flag.project.id,
       organizationId: rule.config.flag.project.organizationId,
     };
+  }
+
+  private async ensureProjectBelongsToOrganization(
+    organizationId: string,
+    projectId: string,
+  ): Promise<void> {
+    const project = await this.prisma.project.findFirst({
+      where: {
+        id: projectId,
+        organizationId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
   }
 }
