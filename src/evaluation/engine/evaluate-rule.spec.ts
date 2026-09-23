@@ -4,10 +4,10 @@ import { EvaluationContext, EvaluationRule } from './types';
 describe('evaluateRule', () => {
   const context: EvaluationContext = {
     environment: 'production',
-    kioskId: 'KIOSK-102',
+    userId: 'sam',
     role: 'admin',
     country: 'GE',
-    userId: 'user-123',
+    accountId: 'account-123',
   };
 
   it('returns TARGETING_NO_MATCH when context attribute is missing', () => {
@@ -87,9 +87,9 @@ describe('evaluateRule', () => {
 
   it('matches IN rule', () => {
     const rule: EvaluationRule = {
-      attribute: 'kioskId',
+      attribute: 'userId',
       operator: 'IN',
-      values: ['KIOSK-102', 'KIOSK-218'],
+      values: ['sam', 'alex'],
     };
 
     const result = evaluateRule(rule, context);
@@ -102,9 +102,9 @@ describe('evaluateRule', () => {
 
   it('does not match IN rule when value is not included', () => {
     const rule: EvaluationRule = {
-      attribute: 'kioskId',
+      attribute: 'userId',
       operator: 'IN',
-      values: ['KIOSK-999'],
+      values: ['charlie'],
     };
 
     const result = evaluateRule(rule, context);

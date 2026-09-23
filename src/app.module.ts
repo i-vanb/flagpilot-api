@@ -10,6 +10,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { EnvironmentsModule } from './environments/environments.module';
 import { ProjectsModule } from './projects/projects.module';
 import { AuthModule } from './auth/auth.module';
+import { DemoModule } from './demo/demo.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AuthModule } from './auth/auth.module';
     ProjectsModule,
     EnvironmentsModule,
     AuthModule,
+    DemoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

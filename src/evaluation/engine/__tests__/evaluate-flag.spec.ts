@@ -74,7 +74,7 @@ describe('evaluateFlag', () => {
 
   it('enables flag for allowed kiosk ids', () => {
     const flag: EvaluationFlag = {
-      key: 'new-kiosk-payment-screen',
+      key: 'new-navigation',
       configs: [
         {
           environmentKey: 'production',
@@ -82,9 +82,9 @@ describe('evaluateFlag', () => {
           defaultValue: false,
           rules: [
             {
-              attribute: 'kioskId',
+              attribute: 'userId',
               operator: 'IN',
-              values: ['KIOSK-102', 'KIOSK-218'],
+              values: ['sam', 'alex'],
             },
           ],
         },
@@ -92,10 +92,10 @@ describe('evaluateFlag', () => {
     };
 
     const result = evaluateFlag(
-      'new-kiosk-payment-screen',
+      'new-navigation',
       {
         environment: 'production',
-        kioskId: 'KIOSK-102',
+        userId: 'sam',
       },
       flag,
     );
@@ -108,7 +108,7 @@ describe('evaluateFlag', () => {
 
   it('returns targeting no match for non-matching kiosk id', () => {
     const flag: EvaluationFlag = {
-      key: 'new-kiosk-payment-screen',
+      key: 'new-navigation',
       configs: [
         {
           environmentKey: 'production',
@@ -116,9 +116,9 @@ describe('evaluateFlag', () => {
           defaultValue: false,
           rules: [
             {
-              attribute: 'kioskId',
+              attribute: 'userId',
               operator: 'IN',
-              values: ['KIOSK-102', 'KIOSK-218'],
+              values: ['sam', 'alex'],
             },
           ],
         },
@@ -126,7 +126,7 @@ describe('evaluateFlag', () => {
     };
 
     const result = evaluateFlag(
-      'new-kiosk-payment-screen',
+      'new-navigation',
       {
         environment: 'production',
         kioskId: 'KIOSK-999',

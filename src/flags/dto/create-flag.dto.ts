@@ -4,7 +4,7 @@ export class CreateFlagDto {
   @IsString()
   @IsNotEmpty()
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-    message: 'key must be kebab-case, for example: new-kiosk-payment-screen',
+    message: 'key must be kebab-case, for example: new-navigation',
   })
   key: string;
 

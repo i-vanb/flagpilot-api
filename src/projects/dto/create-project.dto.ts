@@ -8,7 +8,7 @@ export class CreateProjectDto {
   @IsString()
   @IsNotEmpty()
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-    message: 'key must be kebab-case, for example: plai-platform',
+    message: 'key must be kebab-case, for example: product-discovery',
   })
   key: string;
 

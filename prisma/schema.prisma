@@ -193,3 +193,18 @@ model AuditLog {
   @@index([flagId])
   @@index([createdAt])
 }
+
+model DemoSession {
+  id            String   @id @default(cuid())
+  tokenHash     String   @unique
+  projectId     String   @unique
+  environmentId String
+  apiKeyId      String   @unique
+  clientId      String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([clientId, createdAt])
+  @@index([expiresAt])
+}

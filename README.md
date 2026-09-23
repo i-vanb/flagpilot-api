@@ -44,7 +44,7 @@ Example SDK evaluation response:
 
 ```json
 {
-  "flagKey": "new-kiosk-payment-screen",
+  "flagKey": "new-navigation",
   "enabled": true,
   "reason": "TARGETING_MATCH"
 }
@@ -297,23 +297,22 @@ Root check:
 curl http://localhost:3000
 ```
 
-## Demo Seed Data
+## Local Seed Data
 
 `prisma/seed.ts` creates:
 
 - Organization: `FlagPilot Demo Organization`
 - Organization slug: `flagpilot-demo`
 - User: `admin@flagpilot.dev`
-- Password: `password123`
-- Project: `plai-platform`
+- Password: value supplied through `SEED_ADMIN_PASSWORD`
+- Project: `product-discovery`
 - Environments:
     - `development`
     - `staging`
     - `production`
-- Demo SDK API key:
-    - `fp_live_demo_123456789`
+- SDK API key: value supplied through `SEED_SDK_API_KEY` (never logged)
 - Demo flags:
-    - `new-kiosk-payment-screen`
+    - `new-navigation`
     - `new-booking-flow`
     - `admin-analytics-panel`
     - `new-checkout`
@@ -326,7 +325,7 @@ curl -s -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@flagpilot.dev",
-    "password": "password123"
+    "password": "$SEED_ADMIN_PASSWORD"
   }'
 ```
 
@@ -424,7 +423,7 @@ Register payload:
 {
   "email": "owner@example.com",
   "name": "Owner",
-  "password": "password123",
+  "password": "use-a-strong-password",
   "organizationName": "Example Inc",
   "organizationSlug": "example-inc"
 }
@@ -435,7 +434,7 @@ Login payload:
 ```json
 {
   "email": "admin@flagpilot.dev",
-  "password": "password123"
+  "password": "use-a-strong-password"
 }
 ```
 
@@ -446,7 +445,7 @@ curl -X POST http://localhost:3000/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@flagpilot.dev",
-    "password": "password123"
+    "password": "use-a-strong-password"
   }'
 ```
 
@@ -491,7 +490,7 @@ production
 Project keys must be kebab-case, for example:
 
 ```text
-plai-platform
+product-discovery
 mobile-app
 admin-dashboard
 ```
@@ -725,13 +724,12 @@ SDK endpoints use `x-api-key` and do not use JWT.
 ```bash
 curl -s -X POST http://localhost:3000/sdk/evaluate \
   -H "Content-Type: application/json" \
-  -H "x-api-key: fp_live_demo_123456789" \
+  -H "x-api-key: $SEED_SDK_API_KEY" \
   -d '{
-    "flagKey": "new-kiosk-payment-screen",
+    "flagKey": "new-navigation",
     "context": {
       "environment": "production",
-      "kioskId": "KIOSK-102",
-      "companyId": "COMPANY-1",
+      "plan": "pro",
       "role": "admin",
       "country": "GE",
       "userId": "user-123"
@@ -743,7 +741,7 @@ Response:
 
 ```json
 {
-  "flagKey": "new-kiosk-payment-screen",
+  "flagKey": "new-navigation",
   "enabled": true,
   "reason": "TARGETING_MATCH"
 }
@@ -754,17 +752,17 @@ Response:
 ```bash
 curl -s -X POST http://localhost:3000/sdk/evaluate/batch \
   -H "Content-Type: application/json" \
-  -H "x-api-key: fp_live_demo_123456789" \
+  -H "x-api-key: $SEED_SDK_API_KEY" \
   -d '{
     "flagKeys": [
-      "new-kiosk-payment-screen",
+      "new-navigation",
       "admin-analytics-panel",
       "new-checkout",
       "missing-flag"
     ],
     "context": {
       "environment": "production",
-      "kioskId": "KIOSK-102",
+      "plan": "pro",
       "role": "admin",
       "userId": "user-123"
     }
@@ -776,7 +774,7 @@ Response:
 ```json
 {
   "flags": {
-    "new-kiosk-payment-screen": {
+    "new-navigation": {
       "enabled": true,
       "reason": "TARGETING_MATCH"
     },
@@ -802,11 +800,11 @@ Batch evaluation avoids unnecessary network calls when a client application need
 
 Seed includes several demo flags.
 
-### `new-kiosk-payment-screen`
+### `new-navigation`
 
 ```text
 production: ON
-rule: kioskId IN ["KIOSK-102", "KIOSK-218"]
+rule: userId IN ["sam", "alex"]
 ```
 
 ### `new-booking-flow`

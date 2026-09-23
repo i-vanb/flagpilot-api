@@ -407,7 +407,7 @@ export class FlagsService {
 
     this.validateRule(nextOperator, nextValues, nextRolloutPercentage);
 
-    const updatedRule = this.prisma.targetingRule.update({
+    const updatedRule = await this.prisma.targetingRule.update({
       where: {
         id: ruleId,
       },

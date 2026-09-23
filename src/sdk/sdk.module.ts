@@ -8,5 +8,6 @@ import { SdkApiKeyGuard } from '../api-keys/guards/sdk-api-key.guard';
   imports: [ApiKeysModule],
   controllers: [SdkController],
   providers: [SdkService, SdkApiKeyGuard],
+  exports: [SdkService],
 })
 export class SdkModule {}

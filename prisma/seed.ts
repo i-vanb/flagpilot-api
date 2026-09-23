@@ -11,7 +11,18 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const passwordHash = await bcrypt.hash('password123', 10);
+  const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const seedSdkApiKey = process.env.SEED_SDK_API_KEY;
+
+  if (!seedAdminPassword) {
+    throw new Error('SEED_ADMIN_PASSWORD is not defined');
+  }
+
+  if (!seedSdkApiKey) {
+    throw new Error('SEED_SDK_API_KEY is not defined');
+  }
+
+  const passwordHash = await bcrypt.hash(seedAdminPassword, 10);
 
   const organization = await prisma.organization.upsert({
     where: {
@@ -42,14 +53,14 @@ async function main() {
     where: {
       organizationId_key: {
         organizationId: organization.id,
-        key: 'plai-platform',
+        key: 'product-discovery',
       },
     },
     update: {},
     create: {
-      name: 'PLAI Platform',
-      key: 'plai-platform',
-      description: 'Demo project for FlagPilot',
+      name: 'Product Discovery',
+      key: 'product-discovery',
+      description: 'Neutral local development project for FlagPilot',
       organizationId: organization.id,
     },
   });
@@ -69,8 +80,6 @@ async function main() {
     },
   });
 
-  const demoRawApiKey = 'fp_live_demo_123456789';
-
   const apiKeyPepper = process.env.API_KEY_PEPPER;
 
   if (!apiKeyPepper) {
@@ -78,7 +87,7 @@ async function main() {
   }
 
   const demoApiKeyHash = createHash('sha256')
-    .update(`${demoRawApiKey}.${apiKeyPepper}`)
+    .update(`${seedSdkApiKey}.${apiKeyPepper}`)
     .digest('hex');
 
   await prisma.apiKey.upsert({
@@ -87,7 +96,7 @@ async function main() {
     },
     update: {
       keyHash: demoApiKeyHash,
-      prefix: demoRawApiKey.slice(0, 16),
+      prefix: seedSdkApiKey.slice(0, 16),
       organizationId: organization.id,
       projectId: project.id,
       environmentId: production.id,
@@ -97,14 +106,12 @@ async function main() {
       id: 'demo-sdk-api-key',
       name: 'Demo Production SDK Key',
       keyHash: demoApiKeyHash,
-      prefix: demoRawApiKey.slice(0, 16),
+      prefix: seedSdkApiKey.slice(0, 16),
       organizationId: organization.id,
       projectId: project.id,
       environmentId: production.id,
     },
   });
-
-  console.log(`Demo SDK API key: ${demoRawApiKey}`);
 
   const staging = await prisma.environment.upsert({
     where: {
@@ -138,8 +145,8 @@ async function main() {
 
   await createFlagWithConfigs({
     projectId: project.id,
-    key: 'new-kiosk-payment-screen',
-    name: 'New Kiosk Payment Screen',
+    key: 'new-navigation',
+    name: 'New Navigation',
     configs: [
       {
         environmentId: production.id,
@@ -147,9 +154,9 @@ async function main() {
         defaultValue: false,
         rules: [
           {
-            attribute: 'kioskId',
+            attribute: 'userId',
             operator: RuleOperator.IN,
-            values: ['KIOSK-102', 'KIOSK-218'],
+            values: ['sam', 'alex'],
           },
         ],
       },
